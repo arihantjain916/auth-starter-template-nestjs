@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
+import { verifyToken } from 'src/utils/jwt';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -25,7 +26,13 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Token not found');
     }
 
-    //code to verify jwt
+    const decodedToken = verifyToken(token);
+
+    if(!decodedToken) {
+      throw new UnauthorizedException('Invalid token');
+    }
+
+    request.user = decodedToken;
 
     return true;
   }
