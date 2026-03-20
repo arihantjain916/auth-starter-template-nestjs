@@ -19,7 +19,7 @@ export async function extractWsUser(
   client: Socket,
   configService: ConfigService,
   prisma: PrismaService,
-): Promise<IUserTokenInfo> {
+): Promise<IUserTokenInfo | null> {
   const token =
     client.handshake?.auth?.token || client.handshake?.query?.token || null;
 
@@ -32,18 +32,18 @@ export async function extractWsUser(
   try {
     const decodedToken = verifyJwt(token, jwtSecret);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decodedToken.id },
-      include: { connections: true, settings: true, profile: true },
-    });
+    // const user = await prisma.user.findUnique({
+    //   where: { id: decodedToken.id },
+    //   // include: { connections: true, settings: true, profile: true },
+    // });
 
-    if (!user) {
-      throw new UnauthorizedException('Invalid token');
-    }
-    decodedToken.role = [user.role];
+    // if (!user) {
+    //   throw new UnauthorizedException('Invalid token');
+    // }
+    // decodedToken.role = [user.role];
 
     (client as any).user = decodedToken;
-    return decodedToken;
+    return null;
   } catch (error) {
     throw new UnauthorizedException('Invalid token');
   }
