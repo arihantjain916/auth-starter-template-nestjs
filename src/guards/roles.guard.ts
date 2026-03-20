@@ -26,11 +26,12 @@ export class RolesGuard implements CanActivate {
       throw new ForbiddenException('Invalid credentials');
     }
 
-    if (!user.roles || !Array.isArray(user.roles)) {
+    if (!user.role || !Array.isArray(user.role)) {
       throw new ForbiddenException('Invalid user information');
     }
 
-    const userRoles = requiredRoles.some((role) => user.roles.includes(role));
+    const userRoles = requiredRoles.some((role) => user.role.includes(role));
+
     if (!userRoles) {
       throw new ForbiddenException(
         'You are not allowed to access this resource',

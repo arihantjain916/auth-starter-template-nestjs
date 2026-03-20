@@ -5,13 +5,18 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
-import { verifyToken } from 'src/utils/jwt';
+import { verifyJwt } from '../utils/functions';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from 'src/prisma/prisma.service';
+import { TokenExpiredError, JsonWebTokenError } from 'jsonwebtoken';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
+  constructor(
+    private readonly configService: ConfigService,
+    private prisma: PrismaService,
+  ) { }
+  async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest();
     const authHeader = request.headers['authorization'];
     const cookieToken = request.signedCookies?.ACCESS_TOKEN;
@@ -26,13 +31,35 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Token not found');
     }
 
-    const decodedToken = verifyToken(token);
+    let decodedToken: any;
+    try {
+      decodedToken = verifyJwt(token, this.configService.get('jwt.secret')!);
+    } catch (error) {
+      if (error instanceof TokenExpiredError) {
+        throw new UnauthorizedException('Token expired');
+      }
 
-    if(!decodedToken) {
+      if (error instanceof JsonWebTokenError) {
+        throw new UnauthorizedException('Invalid token');
+      }
+
+      throw new UnauthorizedException('Authentication failed');
+    }
+
+    if (!decodedToken) {
       throw new UnauthorizedException('Invalid token');
     }
 
-    request.user = decodedToken;
+    // const user = await this.prisma.user.findUnique({
+    //   where: { id: decodedToken.id },
+    //   include: { connections: true, settings: true, profile: true },
+    // });
+
+    // if (!user) {
+    //   throw new UnauthorizedException('Invalid token');
+    // }
+    // decodedToken.role = [user.role];
+    // request.user = decodedToken;
 
     return true;
   }
