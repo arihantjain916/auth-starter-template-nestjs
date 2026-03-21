@@ -7,8 +7,8 @@ export async function sendEmail(email: string, otp: string) {
     port: 465,
     secure: true,
     auth: {
-      user: 'connect@thedesignethos.com', // the email you used to create app password
-      pass: 'Sdesign123!', // your generated app password
+      user: '', // the email you used to create app password
+      pass: '', // your generated app password
     },
   });
 
