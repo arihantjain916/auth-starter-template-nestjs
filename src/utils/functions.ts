@@ -1,20 +1,14 @@
 import * as jwt from 'jsonwebtoken';
 
-export const signJwt = (
-  payload: Record<string, unknown>,
-  secret: string,
-  expiresIn: number,
-) => {
-  const token = jwt.sign(payload, secret, {
-    expiresIn: expiresIn,
-  });
-  return token;
-};
+export type JwtPayload = { id: string; role?: string };
 
-export const verifyJwt = (token: string, secret: string) => {
-  try {
-    return jwt.verify(token, secret);
-  } catch (e) {
-    throw new Error('Invalid token');
-  }
-};
+export const signJwt = (
+  payload: JwtPayload,
+  secret: string,
+  expiresIn: jwt.SignOptions['expiresIn'],
+) => jwt.sign(payload, secret, { expiresIn });
+
+// Throws jsonwebtoken's own errors (TokenExpiredError, JsonWebTokenError) so
+// callers can tell an expired token from an invalid one.
+export const verifyJwt = (token: string, secret: string) =>
+  jwt.verify(token, secret) as JwtPayload & jwt.JwtPayload;

@@ -1,38 +1,37 @@
 import {
-  Injectable,
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Injectable,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Observable } from 'rxjs';
+import { Request } from 'express';
+import { ROLES_KEY } from '../decorators/auth.decorator';
+import type { Role } from '../generated/prisma/client';
+import { IUserTokenInfo } from '../interfaces/user.interfaces';
 
+/** Use after AuthGuard: @UseGuards(AuthGuard, RolesGuard) */
 @Injectable()
 export class RolesGuard implements CanActivate {
-  constructor(private reflector: Reflector) {}
-  canActivate(
-    context: ExecutionContext,
-  ): boolean | Promise<boolean> | Observable<boolean> {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>('roles', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+  constructor(private readonly reflector: Reflector) {}
 
-    const request = context.switchToHttp().getRequest();
+  canActivate(context: ExecutionContext): boolean {
+    const requiredRoles = this.reflector.getAllAndOverride<Role[] | undefined>(
+      ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    // No @Roles() on the route: any authenticated user may access it
+    if (!requiredRoles || requiredRoles.length === 0) {
+      return true;
+    }
 
-    const user = request.user;
-
+    const request = context.switchToHttp().getRequest<Request>();
+    const user = request['user'] as IUserTokenInfo | undefined;
     if (!user) {
       throw new ForbiddenException('Invalid credentials');
     }
 
-    if (!user.role || !Array.isArray(user.role)) {
-      throw new ForbiddenException('Invalid user information');
-    }
-
-    const userRoles = requiredRoles.some((role) => user.role.includes(role));
-
-    if (!userRoles) {
+    if (!requiredRoles.some((role) => user.role.includes(role))) {
       throw new ForbiddenException(
         'You are not allowed to access this resource',
       );

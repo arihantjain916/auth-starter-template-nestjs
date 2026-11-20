@@ -1,50 +1,40 @@
-// import { IUserTokenInfo } from '@interfaces/user.interface';
-import { UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-// import { USER_MESSAGES } from '@src/constants/messages';
-// import { verifyAccessToken } from '@utils/functions';
 import { Socket } from 'socket.io';
-import type { IUserTokenInfo } from 'src/interfaces/user.interfaces';
-import { verifyJwt } from './functions';
-import { PrismaService } from 'src/prisma/prisma.service';
+import {
+  ACCESS_TOKEN_COOKIE,
+  authenticateToken,
+  readSignedCookie,
+} from '../auth/auth-token';
+import type { IUserTokenInfo } from '../interfaces/user.interfaces';
+import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * Extracts and verifies a user from a WebSocket handshake.
- * - Reads token from `auth.token` or `query.token`
- * - Verifies JWT using secret from ConfigService
- * - Returns decoded user info
- * - Throws UnauthorizedException if invalid/missing
+ * Extracts and verifies the user from a WebSocket handshake. The token can come
+ * from `auth.token`, `query.token`, an `Authorization: Bearer` header or the
+ * signed ACCESS_TOKEN cookie. Throws UnauthorizedException if it is missing or
+ * invalid. Use it in a gateway's handleConnection, or through WsJwtGuard.
  */
 export async function extractWsUser(
   client: Socket,
-  configService: ConfigService,
+  config: ConfigService,
   prisma: PrismaService,
-): Promise<IUserTokenInfo | null> {
+): Promise<IUserTokenInfo> {
+  const { auth, query, headers } = client.handshake;
+  const [type, bearer] = headers.authorization?.split(' ') ?? [];
+
   const token =
-    client.handshake?.auth?.token || client.handshake?.query?.token || null;
+    (auth?.token as string | undefined) ??
+    (typeof query?.token === 'string' ? query.token : undefined) ??
+    (type === 'Bearer' ? bearer : undefined) ??
+    readSignedCookie(
+      headers.cookie,
+      ACCESS_TOKEN_COOKIE,
+      config.getOrThrow<string>('cookieSecret'),
+    );
 
-  if (!token) {
-    throw new UnauthorizedException('Token not found');
-  }
-
-  const jwtSecret = configService.getOrThrow<string>('jwt.secret');
-
-  try {
-    const decodedToken = verifyJwt(token, jwtSecret);
-
-    // const user = await prisma.user.findUnique({
-    //   where: { id: decodedToken.id },
-    //   // include: { connections: true, settings: true, profile: true },
-    // });
-
-    // if (!user) {
-    //   throw new UnauthorizedException('Invalid token');
-    // }
-    // decodedToken.role = [user.role];
-
-    (client as any).user = decodedToken;
-    return null;
-  } catch (error) {
-    throw new UnauthorizedException('Invalid token');
-  }
+  return authenticateToken(
+    token,
+    config.getOrThrow<string>('jwt.secret'),
+    prisma,
+  );
 }

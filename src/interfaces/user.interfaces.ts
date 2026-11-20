@@ -1,25 +1,8 @@
-export enum OtpStatus {
-  GENERATED = 'GENERATED',
-  EXPIRED = 'EXPIRED',
-  VERIFIED = 'VERIFIED',
-}
-
-export enum AuthType {
-  EMAIL = 'EMAIL',
-  PHONE = 'PHONE',
-}
-
-export enum UserRole {
-  USER = 'USER',
-  ADMIN = 'ADMIN',
-}
-
+import type { Role } from '../generated/prisma/client';
 
 export interface IUserTokenInfo {
   id: string;
-  ip: string;
-  userAgent: string;
-  iat: number;
-  exp: number;
-  role: string;
+  role: Role[];
+  iat?: number;
+  exp?: number;
 }

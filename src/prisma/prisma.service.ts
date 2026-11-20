@@ -1,13 +1,13 @@
 import {
   Injectable,
-  OnModuleInit,
-  OnModuleDestroy,
   Logger,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
-// import { PrismaMariaDb } from '@prisma/adapter-mariadb'; // MySQL
-import { PrismaPg } from '@prisma/adapter-pg';
-import { PrismaClient } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
+import { PrismaPg } from '@prisma/adapter-pg';
+// import { PrismaMariaDb } from '@prisma/adapter-mariadb'; // MySQL
+import { PrismaClient } from '../generated/prisma/client';
 
 @Injectable()
 export class PrismaService
@@ -16,35 +16,31 @@ export class PrismaService
 {
   private readonly logger = new Logger(PrismaService.name);
 
-  constructor(private readonly config: ConfigService) {
-    const adapter = new PrismaPg({
-      connectionString: config.getOrThrow<string>('database.url'),
-    });
+  constructor(config: ConfigService) {
+    const url = config.getOrThrow<string>('database.url');
 
-    // MySQL: comment out the PostgreSQL line above and use this instead
+    // PostgreSQL
+    const adapter = new PrismaPg({ connectionString: url });
 
-    // const poolConfig = {
-    //   host: config.getOrThrow('database.host'),
-    //   user: config.getOrThrow('database.user'),
-    //   password: config.getOrThrow('database.password'),
-    //   database: config.getOrThrow('database.name'),
+    // MySQL: comment out the PostgreSQL adapter above, uncomment this block and
+    // the PrismaMariaDb import, and set provider = "mysql" in schema.prisma.
+    // const { hostname, port, username, password, pathname } = new URL(url);
+    // const adapter = new PrismaMariaDb({
+    //   host: hostname,
+    //   port: Number(port) || 3306,
+    //   user: decodeURIComponent(username),
+    //   password: decodeURIComponent(password),
+    //   database: pathname.slice(1),
     //   connectionLimit: 10,
-    // };
+    // });
 
-    // const adapter = new PrismaMariaDb(poolConfig);
-    super({
-      adapter,
-      log: ['info', 'warn', 'error'],
-    });
+    super({ adapter, log: ['warn', 'error'] });
   }
 
   async onModuleInit() {
-    try {
-      await this.$connect();
-      console.log('✅ Prisma connected successfully');
-    } catch (e) {
-      console.error('❌ Connection failed', e);
-    }
+    // Let a failed connection stop startup instead of running without a database
+    await this.$connect();
+    this.logger.log('Database connected');
   }
 
   async onModuleDestroy() {
