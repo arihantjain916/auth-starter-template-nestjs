@@ -1,25 +1,37 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
-import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
+// import { PrismaMariaDb } from '@prisma/adapter-mariadb'; // MySQL
+import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '@prisma/client';
 import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PrismaService
   extends PrismaClient
-  implements OnModuleInit, OnModuleDestroy {
-  constructor(private readonly config: ConfigService) {
-    // const adapter = new PrismaMariaDb({
-    //   acquireTimeout: 10000,
-    // });
-    const poolConfig = {
-      host: config.get('database.host'),
-      user: config.get('database.user'),
-      password: config.get('database.password'),
-      database: config.get('database.name'),
-      connectionLimit: 10,
-    };
+  implements OnModuleInit, OnModuleDestroy
+{
+  private readonly logger = new Logger(PrismaService.name);
 
-    const adapter = new PrismaMariaDb(poolConfig);
+  constructor(private readonly config: ConfigService) {
+    const adapter = new PrismaPg({
+      connectionString: config.getOrThrow<string>('database.url'),
+    });
+
+    // MySQL: comment out the PostgreSQL line above and use this instead
+
+    // const poolConfig = {
+    //   host: config.getOrThrow('database.host'),
+    //   user: config.getOrThrow('database.user'),
+    //   password: config.getOrThrow('database.password'),
+    //   database: config.getOrThrow('database.name'),
+    //   connectionLimit: 10,
+    // };
+
+    // const adapter = new PrismaMariaDb(poolConfig);
     super({
       adapter,
       log: ['info', 'warn', 'error'],

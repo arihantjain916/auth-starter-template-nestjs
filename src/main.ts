@@ -14,8 +14,11 @@ async function bootstrap() {
   app.use(bodyParser.json({ limit: '10mb' }));
   app.use(bodyParser.urlencoded({ extended: true, limit: '10mb' }));
   app.use(helmet());
+
   const swaggerConfig = new SwaggerConfig();
   swaggerConfig.configureSwagger(app);
+
+  app.enableShutdownHooks();
   await app.listen(process.env.PORT ?? 3000);
 }
 

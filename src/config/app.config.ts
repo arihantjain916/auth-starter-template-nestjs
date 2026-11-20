@@ -1,3 +1,62 @@
+import { plainToInstance } from 'class-transformer';
+import {
+  IsEnum,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  Min,
+  MinLength,
+  validateSync,
+} from 'class-validator';
+
+enum Environment {
+  Development = 'development',
+  Production = 'production',
+  Test = 'test',
+}
+
+// 1. The rules: every variable the app needs, and what a valid value looks like
+class EnvironmentVariables {
+  @IsOptional()
+  @IsEnum(Environment)
+  NODE_ENV: Environment = Environment.Development;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(65535)
+  PORT: number = 3000;
+
+  @Matches(/^postgres(ql)?:\/\//, {
+    message: 'DATABASE_URL must be a postgresql:// connection string',
+  })
+  DATABASE_URL: string;
+
+  @IsString()
+  @MinLength(32, { message: 'JWT_SECRET must be at least 32 characters' })
+  JWT_SECRET: string;
+}
+
+export function validate(config: Record<string, unknown>) {
+  const env = plainToInstance(EnvironmentVariables, config, {
+    enableImplicitConversion: true, // "3000" from .env becomes 3000
+  });
+  const errors = validateSync(env, { skipMissingProperties: false });
+
+  if (errors.length > 0) {
+    const details = errors
+      .map(
+        (e) =>
+          `  - ${e.property}: ${Object.values(e.constraints ?? {}).join(', ')}`,
+      )
+      .join('\n');
+    throw new Error(`Invalid environment variables:\n${details}`);
+  }
+  return env;
+}
+
 export default () => ({
   port: parseInt(process.env.PORT || '3000', 10),
   database: {
